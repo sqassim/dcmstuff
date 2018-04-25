@@ -1,0 +1,102 @@
+# import needed libs
+from pysnmp.entity.rfc3413.oneliner import cmdgen
+import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
+# create list to hold data
+data = []
+
+# generate snmp command Gen
+print('Getting Data..')
+cmdGen = cmdgen.CommandGenerator()
+cmdGen.lexicographicMode = True
+errorIndication, errorStatus, errorIndex, varBinds = cmdGen.getCmd(
+    cmdgen.CommunityData('public'),
+    cmdgen.UdpTransportTarget(("104.236.166.95", 161)),
+    # RAM Total
+    '1.3.6.1.4.1.2021.4.5.0',
+    # RAM Used
+    '1.3.6.1.4.1.2021.4.6.0',
+    # RAM FREE
+    '1.3.6.1.4.1.2021.4.11.0',
+    lookupValues=True, lookupNames=True
+)
+if errorIndication:
+    print(errorIndication)
+else:
+    if errorStatus:
+        print('%s at %s' % (
+            errorStatus.prettyPrint(),
+            errorIndex and varBinds[int(errorIndex) - 1] or '?'
+        )
+              )
+    else:
+        for name, val in varBinds:
+            data.append(str(val))
+
+# assing data to variables
+for x in range(len(data)):
+    RAM_Total = int(data[0])
+    RAM_USED = int(data[1])
+    RAM_FREE = int(data[2])
+
+# Write data to Json Files
+print("Writing Data to .JSON files...")
+file = open('ramUsed.json', 'w+')
+data = (RAM_USED)
+json.dump(data, file)
+
+file = open('ramFree.json', 'w+')
+data = (RAM_FREE)
+json.dump(data, file)
+
+file = open('ramTotal.json', 'w+')
+data = (RAM_Total)
+json.dump(data, file)
+
+# email data
+# target
+smtpHost = 'smtp.gmail.com'
+smtpPort = 465
+username = 'testdcm246@gmail.com'
+password = 'Pa$$word246'
+sender = 'testdcm246@gmail.com'
+targets = ['testdcm246@gmail.com']
+
+Subject = 'DCM Json Files'
+
+msg = MIMEMultipart()
+msg['From'] = sender
+msg['To'] = ', '.join(targets)
+msg['Subject'] = Subject
+
+body = 'The results of the lab are attached'
+msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+#first attachment
+fileName1 = 'ramFree.json'
+attachment1 = open(fileName1, 'rb')
+part1 = MIMEBase('application', 'octet-stream')
+part1.set_payload(attachment1.read())
+encoders.encode_base64(part1)
+part1.add_header('Content-Disposition', "attachment; filename= " + fileName1)
+msg.attach(part1)
+
+#second attachment
+fileName2 = 'ramUsed.json'
+attachment2 = open(fileName2, 'rb')
+part2 = MIMEBase('application', 'octet-stream')
+part2.set_payload(attachment2.read())
+encoders.encode_base64(part2)
+part2.add_header('Content-Disposition', "attachment; filename= " + fileName2)
+msg.attach(part2)
+
+server = smtplib.SMTP_SSL(smtpHost, smtpPort)
+server.login(username, password)
+server.sendmail(sender, targets, msg.as_string())
+server.quit()
+print("email sent.............")
