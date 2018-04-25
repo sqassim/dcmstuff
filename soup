@@ -1,0 +1,18 @@
+import bs4 as bs
+import urllib.request
+
+source = urllib.request.urlopen('https://www.bbc.com/%27).read()
+soup = bs.BeautifulSoup(source,'lxml')
+
+header = soup.header
+
+for url in header.find_all('a'):
+    print(url.get('href'))
+
+
+body = soup.body
+for paragraph in body.find_all('a'):
+    print(paragraph.text)
+
+for div in soup.findall('div', class='body'):
+  print(div.text)
